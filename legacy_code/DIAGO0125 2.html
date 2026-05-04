@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outil de Diagnostic Humidité Complet</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            300: '#cbd5e1',
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                            700: '#334155',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        },
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            },
+            safelist: [
+                'bg-red-500', 'bg-orange-500', 'bg-yellow-300', 'bg-green-500', 'bg-white', 'text-white',
+                'text-gray-900', 'border-red-600', 'border-orange-600', 'border-yellow-400', 'border-green-600',
+                'bg-gray-50', 'border-gray-200', 'hover:shadow-md',
+                'bg-red-100', 'text-red-800', 'border-red-500', 'text-red-700',
+                'bg-brand-50', 'bg-brand-100', 'text-brand-900', 'text-brand-700', 'border-brand-200', 'border-brand-300', 'border-brand-900',
+                'bg-red-50', 'text-red-900', 'border-red-200', 'border-red-300',
+                'bg-orange-50', 'text-orange-900', 'border-orange-200', 'border-orange-300',
+                'bg-yellow-50', 'text-yellow-900', 'border-yellow-200', 'border-yellow-300',
+                'bg-green-50', 'text-green-900', 'border-green-200', 'border-green-300',
+                'bg-slate-50', 'text-slate-700', 'border-slate-200',
+                'whitespace-pre-wrap'
+            ]
+        }
+    </script>
+
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- html2canvas (Requis pour capturer le logo proprement) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- HTML2PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Slab:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        /* --- Styles Logo --- */
+        .diago-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .logo-icon {
+            width: 50px;
+            height: 65px;
+        }
+
+        /* Ajusté selon viewBox */
+        .logo-text {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .brand-name {
+            font-weight: 700;
+            font-size: 24px;
+            color: #0f3a5d;
+            line-height: 1.1;
+            letter-spacing: -0.5px;
+        }
+
+        .tagline {
+            font-size: 9px;
+            color: #64748b;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+
+        /* --- STYLES PDF STRICTS --- */
+        #report-content {
+            font-family: 'Inter', sans-serif;
+            color: #1e3a8a;
+
+            width: 210mm !important;
+            min-width: 210mm !important;
+            max-width: 210mm !important;
+            min-height: 297mm;
+
+            /* Marges internes réduites car html2pdf gère la marge externe */
+            padding: 0 15mm !important;
+
+            margin: 0 !important;
+
+            background-color: white;
+            box-sizing: border-box;
+            overflow: hidden;
+            font-size: 12px;
+        }
+
+        #report-content * {
+            box-sizing: border-box;
+        }
+
+        #report-content h1,
+        #report-content h2,
+        #report-content h3,
+        #report-content h4 {
+            font-family: 'Roboto Slab', serif;
+        }
+
+        .page-break {
+            page-break-after: always;
+        }
+
+        .avoid-break {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            display: block;
+        }
+
+        .break-inside-avoid {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+
+        tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+
+            .print-only {
+                display: block !important;
+            }
+        }
+
+        .tech-table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+            border: 1px solid #bfdbfe;
+            margin-bottom: 1rem;
+        }
+
+        .tech-table th {
+            background-color: #eff6ff;
+            color: #1e3a8a;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.65rem;
+            letter-spacing: 0.05em;
+            border: 1px solid #bfdbfe;
+            padding: 6px 8px;
+            text-align: left;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .tech-table td {
+            border: 1px solid #dbeafe;
+            padding: 6px 8px;
+            color: #334155;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .tech-table:not(.diag-table) tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useRef, useEffect } = React;
+
+        // --- Icones ---
+        const Icons = {
+            Droplet: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M12 22a7 7 0 0 0 7-7c0-2-2-2-2-4-1-1-1-3-1-5s-4-4-4-4-4 4-4 4-1 5-1 5c0 2-2 2-2 4a7 7 0 0 0 7 7z"></path></svg>,
+            ChevronLeft: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m15 18-6-6 6-6" /></svg>,
+            ChevronRight: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m9 18 6-6-6-6" /></svg>,
+            Quote: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M10 11h-4a1 1 0 0 1 -1 -1v-3a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v6c0 2.667 -1.333 4.333 -4 5" /><path d="M19 11h-4a1 1 0 0 1 -1 -1v-3a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v6c0 2.667 -1.333 4.333 -4 5" /></svg>,
+            ClipboardList: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="M12 11h4" /><path d="M12 16h4" /><path d="M8 11h.01" /><path d="M8 16h.01" /></svg>,
+            BadgeCheck: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.78 4.78 4 4 0 0 1-6.74 0 4 4 0 0 1-4.78-4.78 4 4 0 0 1 0-6.74z" /><path d="m9 12 2 2 4-4" /></svg>,
+            FileDown: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /><path d="M12 18v-6" /><path d="m9 15 3 3 3-3" /></svg>,
+            X: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>,
+            AlertTriangle: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
+        };
+
+        // --- UI Reutilisables ---
+        const SectionTitle = ({ children }) => (
+            <h2 className="text-xl font-bold text-blue-700 mb-4 border-b-2 border-blue-100 pb-2 uppercase tracking-wide">
+                {children}
+            </h2>
+        );
+        const Label = ({ children }) => (<label className="block text-sm font-medium text-gray-700 mb-1">{children}</label>);
+        const Input = ({ label, ...props }) => (
+            <div className="mb-3"><Label>{label}</Label><input className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors duration-150" {...props} /></div>
+        );
+        const Select = ({ label, options, ...props }) => (
+            <div className="mb-3"><Label>{label}</Label><select className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none bg-white" {...props}><option value="">-- Sélectionner --</option>{options.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}</select></div>
+        );
+        const CheckboxGroup = ({ label, options, values, onChange }) => {
+            const handleCheck = (opt) => { if (values.includes(opt)) { onChange(values.filter(v => v !== opt)); } else { onChange([...values, opt]); } };
+            return (
+                <div className="mb-4"><Label>{label}</Label><div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">{options.map((opt, i) => (<label key={i} className="flex items-center space-x-2 p-2 border border-gray-200 rounded hover:bg-gray-50 cursor-pointer bg-white shadow-sm hover:shadow-md transition-shadow"><input type="checkbox" checked={values.includes(opt)} onChange={() => handleCheck(opt)} className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" /><span className="text-sm text-gray-700">{opt}</span></label>))}</div></div>
+            );
+        };
+        const TextArea = ({ label, ...props }) => (
+            <div className="mb-3"><Label>{label}</Label><textarea className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none min-h-[100px]" {...props}></textarea></div>
+        );
+
+        // --- Données Statiques ---
+        const DATA = {
+            diagNoms: ["Frade", "Da Cruz"],
+            diagPrenoms: ["Paul", "Steven"],
+            qualiteDemandeur: ["Propriétaire", "Bailleur", "Syndic", "Copropriétaire", "Gestionnaire", "Locataire", "Architecte", "Expert", "Agent immobilier", "Assureur", "Promoteur"],
+            dateApparition: ["< 3 mois", "< 6 mois", "< 1 an", "+ 1 an"],
+            pieces: ["Chambre", "Salon", "Salle de bain", "Toilettes", "Cuisine", "Sous-sol", "Combles", "Garage", "Couloir"],
+            symptomesInterieur: ["Dégradation des murs", "Buée / condensation", "Moisissures", "Taches / auréoles", "Champignons", "Mauvaises odeurs", "Infiltrations", "Sensation de froid", "Chauffage excessif", "Problèmes électriques", "Mauvaise santé", "Asthme / bronchites / rhinite", "Arthrite / arthrose", "Eczéma", "Radon", "Pollution de l'air intérieur"],
+            symptomesExterieur: ["RAS", "Fissures", "Salpêtre", "Peinture écaillée", "Taches assombrissantes", "Pieds de murs humides", "Mousse", "Lichens sur murs", "Détachement du parement", "Chute de maçonnerie", "Pourrissement du bois"],
+            attentes: ["Plainte locataire / voisin", "Demande du médecin", "Problèmes de santé", "Allergies, eczéma", "Pollution de l'air intérieur", "Radon", "Moisissures / champignons", "Mise aux normes", "Entretien du bâtiment", "Recherche d'une maison saine", "Difficultés à revendre", "Difficultés à louer", "Projet de revente", "Projet de location", "Protéger l'investissement"],
+            consequences: ["Pas d'avis", "Dégradation", "Perte de revenus locatifs", "Interdiction de louer", "Insalubrité ou risque d'insalubrité", "Perte à la revente", "Revente impossible", "Risque de maladie grave", "Risque de maladie chronique", "Risque de déménagement", "Risque destruction / effondrement", "Risques électriques", "Inondation"],
+            typeBatiment: ["Appartement", "Maison", "Bureau", "Commerce", "Industrie", "Vide sanitaire", "Sous-sol", "Cave", "Terre-plein"],
+            typeMaconnerie: ["Parpaing", "Brique", "Pierre tendre", "Pierre dure", "Béton cellulaire", "Béton vibré", "Mâchefer", "Torchis", "Bois pan.", "Métal", "Verre", "Mixte"],
+            isolation: ["Doublage mur", "Brique", "Laine de verre", "Laine de roche", "Polystyrène", "Combles: plaques", "Combles: ouate", "Combles: coton", "Sous-toiture: plaques", "Sous-toiture: laine verre", "Sous-toiture: laine roche", "Film"],
+            obsMurs: ["R.A.S", "Salpêtre", "Moisissures", "Champignons", "Mousse", "Lichens", "Cloques", "Pourriture", "Chute d'enduit", "Fissures", "Taches"],
+            obsMursInterieurs: ["Salpêtre", "Moisissures", "Fuite", "Dégradation de la peinture", "Dégradation du plâtre", "Condensation", "Mérule", "Infiltrations", "Cloques", "Tâches", "Fissures"],
+            obsAir: ["Mauvaise odeur", "Moisissures", "Aspergillus", "Acariens", "Absence de ventilation", "Composant Organique Volatile", "Mérule", "Radon"],
+            pathologiesList: ["Remontées capillaires", "Infiltration de murs enterrés", "Contamination d’éléments extérieurs", "Condensation", "Qualité d’air", "Infiltration de façade", "Infiltration de toiture", "Infiltration de terrasses"],
+            pathoStatusOptions: [
+                { label: "RAS", value: "ras", colorBg: "bg-white", colorText: "text-gray-900", border: "border-gray-200" },
+                { label: "Correct", value: "correct", colorBg: "bg-green-50", colorText: "text-green-900", border: "border-green-200" },
+                { label: "À surveiller", value: "surveiller", colorBg: "bg-yellow-50", colorText: "text-yellow-900", border: "border-yellow-200" },
+                { label: "Intervention nécessaire", value: "necessaire", colorBg: "bg-orange-50", colorText: "text-orange-900", border: "border-orange-200" },
+                { label: "Intervention urgente", value: "urgente", colorBg: "bg-red-50", colorText: "text-red-900", border: "border-red-200" }
+            ],
+            risquesList: ["Chocs électriques", "Suspicion de mérule", "Aspergillus", "Pourrissement des bois", "Moisissure excessive", "Risques structurels", "Infiltration / inondation", "Risque Sanitaire"]
+        };
+
+        const TEXTE_REMONTEES = `Les relevés effectuées mettent en évidence une humidité structurelle très élevée (supérieure à 60 digits / 200), accompagnée de salpêtre, de dégradations de maçonnerie, de peintures écaillées, ainsi que de moisissures en pied de mur.
+
+L’ensemble de ces symptômes est caractéristique d’un phénomène de remontées capillaires, correspondant à la migration ascendante de l’eau par les pores des matériaux depuis les parties basses du bâti.
+
+Ce phénomène génère une érosion progressive des liants de maçonnerie, et expose l’ouvrage à un risque structurel.
+
+Les variations hydriques du sol, accentuées par les aléas climatiques (sécheresse puis réhydratation), amplifient la montée d’eau par capillarité et réduisent la capacité des matériaux à évacuer l’humidité. La présence de salpêtre, cristallisation des nitrates, confirme une migration active d’eau depuis les fondations et indique une possible aggravation à moyen terme.
+
+Un risque sanitaire existe également, notamment en cas d’hygrométrie excessive dans les pièces ou derrière les doublages, pouvant favoriser le développement de moisissures et la dégradation des matériaux isolants.
+
+Il faut réaliser un traitement adapté à la nature de la maçonnerie, qui va permettre de recréer une bande d’arase.
+
+Il est impératif d’utiliser des injections de résine liquide, et non des crèmes ou mousses, dont la densité trop élevée ne permet pas une diffusion correcte dans la maçonnerie et peut même entraîner une fragilisation des matériaux en exerçant des pressions inadaptées dans les pores du mur.
+
+La mise en œuvre de ces actions est indispensable afin de stabiliser la structure, d’éviter la poursuite de la dégradation des murs et de prévenir les risques sanitaires liés à l’humidité excessive.
+
+Madame, Monsieur sont informés du risque de dégradation du bâti ainsi que des risques sanitaires associés en l’absence de traitement adapté.`;
+
+        const TEXTE_INFILTRATION_MURS_ENTERRES = `Les mesures réalisées mettent en évidence une humidité structurelle très élevée (supérieure à 60 digits / 200), associée à la présence de salpêtre, de dégradations de maçonnerie, de peintures écaillées, ainsi que de moisissures en pied de mur et derrière les doublages. Ces éléments caractérisent une infiltration active d’eau au niveau des parois enterrées.
+
+La situation présente un risque structurel avéré, lié à l’érosion progressive des liants de maçonnerie.
+
+L’évolution typique se décompose en trois stades :
+
+	•	Stade 1 : apparition de salpêtre ;
+	•	Stade 2 : taches d’humidité et pénétrations d’eau occasionnelles ;
+	•	Stade 3 : risque d’inondation.
+
+Les aléas météorologiques, notamment les épisodes de sécheresse suivis de réhydratation des sols, accentuent la pression hydrostatique sur les parois enterrées et réduisent la capacité de rétention des sols. La cristallisation des nitrates (salpêtre) prouve qu’il y a une migration active d’eau à travers la maçonnerie et laisse présager une aggravation possible vers des infiltrations plus massives à moyen terme.
+
+Un risque sanitaire existe également, notamment en cas d’hygrométrie excessive dans les pièces ou derrière les doublages, pouvant favoriser le développement de moisissures et la dégradation des matériaux isolants.
+
+Un décaissement périphérique est fortement déconseillé en raison du risque de déséquilibre des fondations et des phénomènes mécaniques de retrait-gonflement des sols.
+
+Les interventions doivent donc être réalisées depuis l’intérieur, avec :
+
+	•	un traitement de type cuvelage, restructurant, hydrofuge et hydrophobe adapté,
+	•	une décompression de la maçonnerie (drainage interne, relevage si nécessaire),
+	•	l’exclusion des solutions à base de ciment ou de chaux, inadaptées dans ce contexte.
+
+Il est impératif d’engager ces travaux afin de stabiliser la structure, limiter la dégradation des matériaux et prévenir les risques d’inondation et de contamination fongique.
+
+Madame, Monsieur sont informés du risque de dégradation du bâti ainsi que des risques sanitaires associés en l’absence de traitement adapté.`;
+
+        const TEXTE_CONDENSATION = `Les relevés hygrométriques effectués dans l’air ambiant mettent en évidence un taux d’humidité nettement supérieur aux seuils généralement admis (supérieur à 55 %). Ce déséquilibre hygrométrique s’accentue particulièrement durant la nuit, lorsque la température extérieure diminue et que l’accumulation d’humidité liée à l’activité humaine atteint son maximum (respiration, transpiration, douches, sommeil).
+
+Ce contexte favorise l’apparition de phénomènes de condensation sur les parois froides et zones de ponts thermiques. Il en résulte un développement de moisissures, notamment de type aspergillus, directement lié à un air vicié et à un défaut de renouvellement d’air constant. Ces micro-organismes peuvent avoir un impact notable sur les voies respiratoires, en particulier chez les personnes immunodéprimées, asthmatiques ou âgées.
+
+Madame, Monsieur sont informés du risque de dégradation du bâti ainsi que des risques sanitaires associés en l’absence de traitement adapté.
+
+Un traitement ponctuel par dépression présente une efficacité limitée, dans la mesure où il ne garantit pas une action homogène sur l’ensemble du volume. De même, une simple déshumidification ne constitue pas une solution suffisante, puisqu’elle ne traite pas les causes structurelles telles que les ponts thermiques.
+
+Il est donc nécessaire d’intervenir sur l’ensemble du volume, au moyen d’un dispositif global permettant une régulation de la température, de la pression et de la qualité de l’air, afin d’assurer un traitement durable et efficace du phénomène de condensation.`;
+
+        // COMPOSANT LOGO POUR PDF (Utilisé pour la capture)
+        const DiagoLogo = () => (
+            <div className="diago-logo">
+                <svg className="logo-icon" viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="gradBlue" x1="0%" y1="100%" x2="100%" y2="0%">
+                            <stop offset="0%" style={{ stopColor: '#0b4e85' }} />
+                            <stop offset="100%" style={{ stopColor: '#2a9df4' }} />
+                        </linearGradient>
+
+                        <linearGradient id="gradTeal" x1="0%" y1="100%" x2="0%" y2="0%">
+                            <stop offset="0%" style={{ stopColor: '#0f3a5d' }} />
+                            <stop offset="100%" style={{ stopColor: '#4ecdc4' }} />
+                        </linearGradient>
+                    </defs>
+
+                    <path d="M 50 5 C 30 30, 0 60, 5 90 C 10 120, 45 135, 70 120 C 50 125, 20 110, 20 85 C 20 55, 45 30, 50 5 Z"
+                        fill="url(#gradBlue)" />
+
+                    <path d="M 50 5 C 70 40, 95 70, 85 100 C 80 115, 65 122, 55 122 C 75 115, 80 95, 75 80 C 65 55, 55 25, 50 5 Z"
+                        fill="url(#gradTeal)" />
+                </svg>
+
+                <div className="logo-text">
+                    <span className="brand-name">DIAGO</span>
+                    <span className="tagline">Comprendre l'humidité avant les travaux</span>
+                </div>
+            </div>
+        );
+
+        const App = () => {
+            const [step, setStep] = useState(1);
+            const totalSteps = 13;
+            const [formData, setFormData] = useState({
+                clientNom: "", clientPrenom: "", clientAdresse: "", clientCP: "", clientVille: "", clientTel: "", clientEmail: "", clientQualite: "",
+                diagNom: "", diagPrenom: "", diagDate: new Date().toISOString().split('T')[0],
+                dossierRef: `Dossier Ref. ${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`,
+                histDate: "", histPieces: [], histObs: "",
+                sympInt: [], obsInt: "", sympExt: [], obsExt: "", attentes: [], consequences: [],
+                nbEnfants: "0", nbAdultes: "0",
+                batType: "", batAnnee: "", batMaconnerie: "", batIsolation: [],
+                visiteDebut: "", visiteFin: "", visiteComplete: true, visiteMotif: "",
+                obsMurExt: [], obsMurInt: [], obsAirInt: [], obsSupp: "",
+                testNitrate: "Non", testNitrateListe: [],
+                testT660: "Non", testT660Liste: [], testT660Details: "",
+                testHygro: "Non", testHygroListe: [], testHygroDetails: "",
+                testIgeres: "Non", testIgeresListe: [], testIgeresDetails: "",
+                obsFinales: "",
+                pathologiesState: DATA.pathologiesList.reduce((acc, curr) => ({ ...acc, [curr]: "ras" }), {}),
+                risquesCoches: [],
+                conclusionPathologies: "",
+                signatureClientData: null, signatureDiagData: null, photos: []
+            });
+
+            const updateField = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
+            const updateCheckbox = (field, list) => setFormData(prev => ({ ...prev, [field]: list }));
+
+            // NOUVELLE FONCTION POUR GÉRER L'AUTOMATISATION DU TEXTE
+            // 1. Initialisation unique (à mettre au début de votre script)
+            if (!formData.pathologiesState) formData.pathologiesState = {};
+            if (!formData.texteManuel) formData.texteManuel = "";
+
+            const handlePathologyChange = (patho, value) => {
+                // Mise à jour rapide de l'état
+                if (patho) {
+                    formData.pathologiesState[patho] = value;
+                }
+
+                // On utilise un tableau simple (très rapide en JS)
+                const conclusions = [];
+                const state = formData.pathologiesState;
+
+                // Vérifications directes
+                if (state["Remontées capillaires"] === "necessaire" || state["Remontées capillaires"] === "urgente")
+                    conclusions.push(TEXTE_REMONTEES);
+
+                if (state["Infiltration de murs enterrés"] === "necessaire" || state["Infiltration de murs enterrés"] === "urgente")
+                    conclusions.push(TEXTE_INFILTRATION_MURS_ENTERRES);
+
+                if (state["Condensation"] === "necessaire" || state["Condensation"] === "urgente")
+                    conclusions.push(TEXTE_CONDENSATION);
+
+                const texteAuto = conclusions.join("\n\n");
+
+                // Fusion ultra-rapide
+                const final = formData.texteManuel
+                    ? formData.texteManuel + (texteAuto ? "\n\n--- ANALYSE TECHNIQUE ---\n\n" + texteAuto : "")
+                    : texteAuto;
+
+                formData.conclusionPathologies = final;
+
+                // Mise à jour de l'affichage seulement si l'élément existe
+                const el = document.getElementById('conclusionPathologies');
+                if (el && el.value !== final) {
+                    el.value = final;
+                }
+            };
+
+            // 2. Fonction séparée pour le texte manuel (évite les lags au clavier)
+            const handleManuelChange = (val) => {
+                formData.texteManuel = val;
+                // On ne reconstruit pas tout l'objet, on appelle la fonction de fusion
+                handlePathologyChange(null, null);
+            };
+
+            const toggleRisk = (risk) => {
+                const current = formData.risquesCoches;
+                if (current.includes(risk)) {
+                    updateCheckbox('risquesCoches', current.filter(r => r !== risk));
+                } else {
+                    updateCheckbox('risquesCoches', [...current, risk]);
+                }
+            };
+
+            // Signatures
+            const clientCanvasRef = useRef(null);
+            const diagCanvasRef = useRef(null);
+            const [isDrawingClient, setIsDrawingClient] = useState(false);
+            const [isDrawingDiag, setIsDrawingDiag] = useState(false);
+
+            const startDraw = (e, canvasRef, setIsDrawing) => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+                const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+                if (clientX === undefined || clientY === undefined) return;
+                const x = clientX - rect.left;
+                const y = clientY - rect.top;
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                setIsDrawing(true);
+            };
+
+            const moveDraw = (e, canvasRef, isDrawing) => {
+                if (!isDrawing) return;
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+                const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+                if (clientX === undefined || clientY === undefined) return;
+                const x = clientX - rect.left;
+                const y = clientY - rect.top;
+                ctx.lineTo(x, y);
+                ctx.stroke();
+                if (e.touches) e.preventDefault();
+            };
+
+            const endDraw = (canvasRef, setIsDrawing, fieldName) => {
+                setIsDrawing(false);
+                if (canvasRef.current) {
+                    updateField(fieldName, canvasRef.current.toDataURL());
+                }
+            };
+
+            const clearSignature = (canvasRef, fieldName) => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                updateField(fieldName, null);
+            };
+
+            // Photos
+            const handlePhotoUpload = (e) => {
+                const files = Array.from(e.target.files);
+                files.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        setFormData(prev => ({ ...prev, photos: [...prev.photos, reader.result] }));
+                    };
+                    reader.readAsDataURL(file);
+                });
+                e.target.value = '';
+            };
+            const removePhoto = (indexToRemove) => {
+                setFormData(prev => ({ ...prev, photos: prev.photos.filter((_, index) => index !== indexToRemove) }));
+            };
+
+            // PDF Generation
+            const generatePDF = async () => {
+                const element = document.getElementById('report-content');
+                element.classList.remove('hidden');
+
+                // 1. Capturer le logo
+                const logoElement = document.getElementById('pdf-logo-source');
+                let logoDataUrl = null;
+                let logoRatio = 1;
+                if (logoElement) {
+                    try {
+                        const canvas = await html2canvas(logoElement, { scale: 3, backgroundColor: null });
+                        logoDataUrl = canvas.toDataURL('image/png');
+                        logoRatio = canvas.height / canvas.width;
+                    } catch (e) {
+                        console.error("Erreur capture logo", e);
+                    }
+                }
+
+                // 2. Configurer PDF avec marge supérieure pour le header (45mm - augmenté pour le grand logo)
+                const opt = {
+                    margin: [50, 0, 15, 0], // Top, Left, Bottom, Right
+                    filename: `Rapport_Diagnostic_${formData.clientNom || 'Client'}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: {
+                        scale: 2,
+                        useCORS: true,
+                        scrollY: 0,
+                        scrollX: 0
+                    },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                    pagebreak: { mode: ['css', 'legacy'] }
+                };
+
+                // 3. Générer et injecter les headers sur chaque page
+                html2pdf().from(element).set(opt).toPdf().get('pdf').then((pdf) => {
+                    const totalPages = pdf.internal.getNumberOfPages();
+                    for (let i = 1; i <= totalPages; i++) {
+                        pdf.setPage(i);
+                        const pageWidth = pdf.internal.pageSize.getWidth();
+
+                        // --- HEADER GAUCHE : LOGO ---
+                        if (logoDataUrl) {
+                            const logoWidth = 85; // Largeur en mm - DOUBLÉ (était 35)
+                            const logoHeight = logoWidth * logoRatio;
+                            // Position (x, y) - Marge gauche 15mm, Top 5mm
+                            pdf.addImage(logoDataUrl, 'PNG', 15, 5, logoWidth, logoHeight);
+                        }
+
+                        // --- HEADER DROITE : DATE & REF ---
+                        pdf.setFontSize(9);
+                        pdf.setTextColor(30, 58, 138); // #1e3a8a
+                        pdf.setFont('helvetica', 'bold');
+                        const dateStr = formatDate(formData.diagDate);
+
+                        // Align Right (PageWidth - Marge Droite 15mm)
+                        pdf.text(dateStr, pageWidth - 15, 12, { align: 'right' });
+
+                        pdf.setFontSize(8);
+                        pdf.setTextColor(100, 116, 139); // Slate 500
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.text(formData.dossierRef, pageWidth - 15, 17, { align: 'right' });
+
+                        // Ligne de séparation optionnelle sous le header
+                        pdf.setDrawColor(226, 232, 240); // slate-200
+                        pdf.line(15, 42, pageWidth - 15, 42); // Ligne descendue à y=42mm
+
+                        // ... après le code du Header (Logo, Date & Ref) ...
+
+                        // --- PIED DE PAGE : INFORMATIONS JURIDIQUES ---
+pdf.setFontSize(8);
+pdf.setTextColor(30, 58, 138); // #1e3a8a
+pdf.setFont('helvetica', 'normal');
+
+// --- DONNÉES À PERSONNALISER ---
+const website = "www.diago-humidite.fr";
+const companyName = "M.P.C";
+const address = "60 RUE FRANCOIS 1ER, 75008 PARIS";
+const email = "contact@diago-humidite.fr";
+const phone = "06 82 53 39 50";
+const rcs = "984 496 083 R.C.S. Paris";
+const iban = "IBAN : FR76 3000 3008 4600 0201 8171 781 - BIC : SOGEFRPP";
+
+// Position Y du pied de page
+const footerY = pdf.internal.pageSize.getHeight() - 14;
+
+// Ligne 1 : Nom commercial + entreprise
+pdf.text(
+  `DIAGO HUMIDITÉ – Marque commerciale exploitée par ${companyName}`,
+  pageWidth / 2,
+  footerY,
+  { align: 'center' }
+);
+
+// Ligne 2 : Adresse + contacts
+pdf.text(
+  `${address} – Tél : ${phone} – Email : ${email}`,
+  pageWidth / 2,
+  footerY + 4,
+  { align: 'center' }
+);
+
+// Ligne 3 : RCS + IBAN
+pdf.text(
+  `${rcs} – ${iban}`,
+  pageWidth / 2,
+  footerY + 8,
+  { align: 'center' }
+);
+
+// Ligne 4 : Site internet
+pdf.text(
+  website,
+  pageWidth / 2,
+  footerY + 12,
+  { align: 'center' }
+);
+
+// --- NUMÉROTATION DE PAGE ---
+const pageNumber = "Page " + i + " / " + totalPages;
+pdf.text(
+  pageNumber,
+  pageWidth - 15,
+  pdf.internal.pageSize.getHeight() - 10,
+  { align: 'right' }
+);
+
+                    }   
+
+                }).output('blob').then((blob) => {
+                    const fileName = `Rapport_Diagnostic_${formData.clientNom || 'Client'}.pdf`;
+                    const file = new File([blob], fileName, { type: 'application/pdf' });
+
+                    // Si on est sur iPhone/Mobile (Share API)
+                    if (navigator.share) {
+                        navigator.share({
+                            files: [file],
+                            title: 'Diagnostic Humidité',
+                        }).catch(err => console.log("Partage annulé ou erreur:", err));
+                    } else {
+                        // Secours pour Ordinateur (Téléchargement classique)
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = fileName;
+                        link.click();
+                    }
+
+                    element.classList.add('hidden'); // On cache le template comme dans ton code original
+                });
+            };
+
+            const addNitrateTest = () => updateField('testNitrateListe', [...formData.testNitrateListe, { valeur: "0", lieu: "" }]);
+            const updateNitrateTest = (idx, field, val) => {
+                const newList = [...formData.testNitrateListe];
+                newList[idx][field] = val;
+                updateField('testNitrateListe', newList);
+            };
+
+            const formatDate = (dateString) => {
+                if (!dateString) return "";
+                const date = new Date(dateString);
+                return date.toLocaleDateString('fr-FR');
+            }
+
+            // --- RENDER ---
+            const renderStep = () => {
+                switch (step) {
+                    case 1: return (
+                        <div className="animate-fade-in"><SectionTitle>1. Informations Générales</SectionTitle><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div className="bg-white p-4 rounded shadow"><h3 className="font-bold mb-3 text-blue-600">Client</h3><Input label="Nom" value={formData.clientNom} onChange={e => updateField('clientNom', e.target.value)} /><Input label="Prénom" value={formData.clientPrenom} onChange={e => updateField('clientPrenom', e.target.value)} /><Input label="Adresse" value={formData.clientAdresse} onChange={e => updateField('clientAdresse', e.target.value)} /><div className="grid grid-cols-2 gap-2"><Input label="Code Postal" value={formData.clientCP} onChange={e => updateField('clientCP', e.target.value)} /><Input label="Ville" value={formData.clientVille} onChange={e => updateField('clientVille', e.target.value)} /></div><Input label="Portable" value={formData.clientTel} onChange={e => updateField('clientTel', e.target.value)} /><Input label="Email" value={formData.clientEmail} type="email" onChange={e => updateField('clientEmail', e.target.value)} /><Select label="Qualité" options={DATA.qualiteDemandeur} value={formData.clientQualite} onChange={e => updateField('clientQualite', e.target.value)} /></div><div className="bg-white p-4 rounded shadow"><h3 className="font-bold mb-3 text-blue-600">Diagnostiqueur</h3><Select label="Nom" options={DATA.diagNoms} value={formData.diagNom} onChange={e => updateField('diagNom', e.target.value)} /><Select label="Prénom" options={DATA.diagPrenoms} value={formData.diagPrenom} onChange={e => updateField('diagPrenom', e.target.value)} /><Input label="Date du diagnostic" type="date" value={formData.diagDate} onChange={e => updateField('diagDate', e.target.value)} /></div></div></div>
+                    );
+                    case 2: return (
+                        <div><SectionTitle>2. Rappel</SectionTitle><div className="bg-white p-6 rounded shadow text-justify leading-relaxed border-l-4 border-blue-500"><p className="mb-4">Suite à la demande de <strong>{formData.clientNom} {formData.clientPrenom}</strong>,</p><p className="mb-4">Il a été procédé à des opérations de diagnostic de l’humidité existante et/ou de la pollution de l’air intérieur par <strong>{formData.diagPrenom} {formData.diagNom}</strong>, le {formatDate(formData.diagDate)}.</p><p className="mb-4">Les opérations de diagnostic ont été réalisées à : <strong>{formData.clientAdresse}, {formData.clientCP} {formData.clientVille}</strong>.</p><p className="mb-4">Les opérations menées avaient pour but de répondre à la demande d’identification de l’origine des désordres, d’en déterminer la cause et les conséquences structurelles, économiques, financières et sanitaires, et enfin d’en déterminer les traitements possibles.</p><p className="font-semibold mt-4">Ces opérations sont basées sur :</p><ul className="list-disc ml-6 mb-4 italic text-gray-600"><li>les déclarations des personnes présentes,</li><li>les observations du technicien,</li><li>les relevés et prélèvements réalisés sur place,</li><li>les éléments fournis (photos, plans, factures, expertises, constats…).</li></ul><div className="bg-red-50 p-4 border border-red-100 rounded text-sm text-red-800 mb-4"><strong>Les résultats peuvent être remis en cause en cas :</strong> d’omission volontaire, de fausse déclaration, d’intervention préalable masquant les désordres.</div><p><strong>Le demandeur déclare avoir respecté le protocole :</strong> Fenêtres fermées 24h avant, Aucune trace nettoyée, Aucune dissimulation, Aucun incident ancien occulté, Aucune fausse déclaration, Aucune opposition à la visite.</p><p className="mt-4 font-medium">Il ressort de ces opérations les éléments présentés dans les pages suivantes.</p></div></div>
+                    );
+                    case 3: return (<div><SectionTitle>3. Historique des symptômes & Localisation</SectionTitle><div className="bg-white p-4 rounded shadow"><Select label="Date d'apparition des symptômes" options={DATA.dateApparition} value={formData.histDate} onChange={e => updateField('histDate', e.target.value)} /><CheckboxGroup label="Pièces concernées" options={DATA.pieces} values={formData.histPieces} onChange={v => updateCheckbox('histPieces', v)} /><TextArea label="Observations sur l'historique" value={formData.histObs} onChange={e => updateField('histObs', e.target.value)} /></div></div>);
+                    case 4: return (<div><SectionTitle>4. Indices Intérieurs</SectionTitle><div className="bg-white p-4 rounded shadow"><CheckboxGroup label="Symptômes relevés" options={DATA.symptomesInterieur} values={formData.sympInt} onChange={v => updateCheckbox('sympInt', v)} /><TextArea label="Observations intérieures complémentaires" value={formData.obsInt} onChange={e => updateField('obsInt', e.target.value)} /></div></div>);
+                    case 5: return (<div><SectionTitle>5. Indices Extérieurs</SectionTitle><div className="bg-white p-4 rounded shadow"><CheckboxGroup label="Symptômes relevés" options={DATA.symptomesExterieur} values={formData.sympExt} onChange={v => updateCheckbox('sympExt', v)} /><TextArea label="Observations extérieures complémentaires" value={formData.obsExt} onChange={e => updateField('obsExt', e.target.value)} /></div></div>);
+                    case 6: return (<div><SectionTitle>6. Attentes</SectionTitle><div className="bg-white p-4 rounded shadow"><CheckboxGroup label="Attentes des demandeurs" options={DATA.attentes} values={formData.attentes} onChange={v => updateCheckbox('attentes', v)} /></div></div>);
+                    case 7: return (<div><SectionTitle>7. Conséquences</SectionTitle><div className="bg-white p-4 rounded shadow"><CheckboxGroup label="Conséquences redoutées / constatées" options={DATA.consequences} values={formData.consequences} onChange={v => updateCheckbox('consequences', v)} /></div></div>);
+                    case 8: return (<div><SectionTitle>8. Occupants</SectionTitle><div className="bg-white p-4 rounded shadow grid grid-cols-2 gap-4"><Input label="Nombre d'adultes" type="number" value={formData.nbAdultes} onChange={e => updateField('nbAdultes', e.target.value)} /><Input label="Nombre d'enfants" type="number" value={formData.nbEnfants} onChange={e => updateField('nbEnfants', e.target.value)} /></div></div>);
+                    case 9: return (<div><SectionTitle>9. Le Bâtiment</SectionTitle><div className="bg-white p-4 rounded shadow"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><Select label="Type de bâtiment" options={DATA.typeBatiment} value={formData.batType} onChange={e => updateField('batType', e.target.value)} /><Input label="Année de construction (ou '± 10 ans')" value={formData.batAnnee} onChange={e => updateField('batAnnee', e.target.value)} /></div><Select label="Type de maçonnerie" options={DATA.typeMaconnerie} value={formData.batMaconnerie} onChange={e => updateField('batMaconnerie', e.target.value)} /><CheckboxGroup label="Isolation existante" options={DATA.isolation} values={formData.batIsolation} onChange={v => updateCheckbox('batIsolation', v)} /></div></div>);
+                    case 10: return (<div><SectionTitle>10. Visite Technique</SectionTitle><div className="bg-white p-4 rounded shadow mb-4"><div className="flex gap-4 mb-4"><div className="flex-1"><Input label="Heure début" type="time" value={formData.visiteDebut} onChange={e => updateField('visiteDebut', e.target.value)} /></div><div className="flex-1"><Input label="Heure fin" type="time" value={formData.visiteFin} onChange={e => updateField('visiteFin', e.target.value)} /></div></div><div className="mb-4"><Label>Visite complète du bien ?</Label><div className="flex gap-4 mt-2"><label className="flex items-center"><input type="radio" checked={formData.visiteComplete} onChange={() => updateField('visiteComplete', true)} className="mr-2" /> Oui</label><label className="flex items-center"><input type="radio" checked={!formData.visiteComplete} onChange={() => setFormData(prev => ({ ...prev, visiteComplete: false, visiteMotif: `${prev.clientNom} a voulu se concentrer sur le problème` }))} className="mr-2" /> Non</label></div>{!formData.visiteComplete && (<div className="mt-2"><Input label="Motif de visite partielle" value={formData.visiteMotif} onChange={e => updateField('visiteMotif', e.target.value)} /></div>)}</div></div><div className="bg-white p-4 rounded shadow"><h3 className="font-bold mb-2">Observations Visuelles</h3><CheckboxGroup label="Murs Extérieurs" options={DATA.obsMurs} values={formData.obsMurExt} onChange={v => updateCheckbox('obsMurExt', v)} /><div className="my-4 border-t border-gray-100"></div><CheckboxGroup label="Murs Intérieurs" options={DATA.obsMursInterieurs} values={formData.obsMurInt} onChange={v => updateCheckbox('obsMurInt', v)} /><div className="my-4 border-t border-gray-100"></div><CheckboxGroup label="Air Intérieur" options={DATA.obsAir} values={formData.obsAirInt} onChange={v => updateCheckbox('obsAirInt', v)} /><TextArea label="Observations Supplémentaires" value={formData.obsSupp} onChange={e => updateField('obsSupp', e.target.value)} /></div></div>);
+                    case 11: return (
+                        <div>
+                            <SectionTitle>11. Relevés & Prélèvements</SectionTitle>
+                            <div className="bg-white p-4 rounded shadow mb-4 border-l-4 border-purple-500">
+                                <h3 className="font-bold mb-2">Test Nitrate</h3>
+                                <div className="flex gap-4 mb-3">{['Oui', 'Non', 'Non nécessaire'].map(opt => (<label key={opt}><input type="radio" name="nitrate" checked={formData.testNitrate === opt} onChange={() => updateField('testNitrate', opt)} className="mr-1" /> {opt}</label>))}</div>
+                                {formData.testNitrate === 'Oui' && (<div>{formData.testNitrateListe.map((test, i) => (<div key={i} className="flex gap-2 mb-2 items-end"><div className="flex-1"><Label>Taux</Label><select className="w-full p-2 border rounded" value={test.valeur} onChange={e => updateNitrateTest(i, 'valeur', e.target.value)}>{[0, 10, 25, 50, 100, 250, 500].map(v => <option key={v} value={v}>{v}</option>)}</select></div><div className="flex-[2]"><Label>Lieu</Label><input className="w-full p-2 border rounded" type="text" value={test.lieu} onChange={e => updateNitrateTest(i, 'lieu', e.target.value)} /></div></div>))}<button onClick={addNitrateTest} className="text-sm bg-purple-100 text-purple-700 px-3 py-1 rounded mt-2 hover:bg-purple-200">+ Ajouter un test</button></div>)}
+                            </div>
+                            <div className="bg-white p-4 rounded shadow mb-4">
+                                <h3 className="font-bold mb-2">Test humidité</h3>
+                                <div className="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded mb-4 text-sm space-y-1"><p>• <strong>Le T660</strong> donne des valeurs en digit allant de 0 à 200. Une valeur inférieure à 60 indique qu'il n'y a pas d'humidité.</p><p>• <strong>L'hygromètre</strong> indique un taux d'humidité dans l'air. Un taux supérieur à 50% est un taux anormal.</p><p>• <strong>L'IGERESS</strong> permet d'évaluer la pollution dans l'air (Composant Organique Volatile).</p></div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="p-3 border rounded bg-gray-50"><Label>Test Humidimètre T660</Label><select className="w-full p-1 border rounded mt-1" value={formData.testT660} onChange={e => updateField('testT660', e.target.value)}><option>Non</option><option>Oui</option></select>{formData.testT660 === 'Oui' && (<textarea className="w-full p-2 border border-gray-300 rounded mt-2 text-sm h-20 outline-none focus:ring-1 focus:ring-blue-500" placeholder="Notes / Relevés T660..." value={formData.testT660Details} onChange={e => updateField('testT660Details', e.target.value)} />)}</div>
+                                    <div className="p-3 border rounded bg-gray-50"><Label>Test Hygromètre</Label><select className="w-full p-1 border rounded mt-1" value={formData.testHygro} onChange={e => updateField('testHygro', e.target.value)}><option>Non</option><option>Oui</option></select>{formData.testHygro === 'Oui' && (<textarea className="w-full p-2 border border-gray-300 rounded mt-2 text-sm h-20 outline-none focus:ring-1 focus:ring-blue-500" placeholder="Notes / Taux d'humidité..." value={formData.testHygroDetails} onChange={e => updateField('testHygroDetails', e.target.value)} />)}</div>
+                                    <div className="p-3 border rounded bg-gray-50"><Label>Test IGERESS</Label><select className="w-full p-1 border rounded mt-1" value={formData.testIgeres} onChange={e => updateField('testIgeres', e.target.value)}><option>Non</option><option>Oui</option></select>{formData.testIgeres === 'Oui' && (<textarea className="w-full p-2 border border-gray-300 rounded mt-2 text-sm h-20 outline-none focus:ring-1 focus:ring-blue-500" placeholder="Notes / Résultats COV..." value={formData.testIgeresDetails} onChange={e => updateField('testIgeresDetails', e.target.value)} />)}</div>
+                                </div>
+                            </div>
+                            <div className="bg-white p-4 rounded shadow"><TextArea label="Observations Finales / Synthèse des mesures" value={formData.obsFinales} onChange={e => updateField('obsFinales', e.target.value)} /></div>
+                        </div>
+                    );
+                    case 12: return (
+                        <div className="animate-fade-in">
+                            <SectionTitle>12. Pathologies & Risques</SectionTitle>
+                            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 text-sm text-blue-800 rounded-r shadow-sm"><p className="flex items-center font-semibold mb-1"><Icons.BadgeCheck className="w-5 h-5 mr-2" />Synthèse des observations</p><p>Veuillez qualifier l'état de chaque pathologie identifiée et cocher les risques potentiels.</p></div>
+                            <div className="bg-white p-6 rounded-lg shadow-md border border-gray-100 mb-8"><div className="grid grid-cols-1 md:grid-cols-2 gap-4">{DATA.pathologiesList.map((patho, index) => { const currentValue = formData.pathologiesState[patho]; const statusOption = DATA.pathoStatusOptions.find(opt => opt.value === currentValue); const colorClass = statusOption ? `${statusOption.colorBg} ${statusOption.colorText}` : 'bg-gray-50 text-gray-800'; const borderColor = statusOption ? statusOption.border : 'border-gray-200'; return (<div key={index} className={`relative p-4 rounded-lg border-2 transition-all duration-300 ease-in-out shadow-sm hover:shadow-md ${colorClass} ${borderColor}`}><div className="flex flex-col h-full justify-between"><div className="flex items-start justify-between mb-3"><label className="font-bold text-lg leading-tight">{patho}</label>{currentValue === 'urgente' && <div className="bg-white text-red-500 rounded-full p-1 shadow-sm"><Icons.X size={16} /></div>}{currentValue === 'correct' && <div className="bg-white text-green-500 rounded-full p-1 shadow-sm"><Icons.BadgeCheck size={16} /></div>}</div><div className="relative"><select className={`w-full p-2 pr-8 rounded cursor-pointer outline-none font-medium text-sm appearance-none bg-white/90 text-gray-900 border border-gray-300/50 shadow-inner focus:ring-2 focus:ring-blue-300`} value={currentValue} onChange={(e) => handlePathologyChange(patho, e.target.value)}>{DATA.pathoStatusOptions.map(opt => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select><div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700"><svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg></div></div></div></div>) })}</div></div>
+                            <div className="bg-white p-6 rounded-lg shadow-md border border-gray-100 mb-8"><h3 className="font-bold mb-4 text-xl text-gray-800 flex items-center border-b pb-2"><Icons.AlertTriangle className="mr-2 text-red-600" />Risques Immédiats</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-3">{DATA.risquesList.map((risk, i) => { const isChecked = formData.risquesCoches.includes(risk); return (<label key={i} className={`flex items-center space-x-3 p-4 border rounded cursor-pointer transition-all duration-200 ${isChecked ? 'bg-red-100 border-red-300 text-red-800 font-bold shadow' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:shadow-md'}`}><input type="checkbox" checked={isChecked} onChange={() => toggleRisk(risk)} className={`w-5 h-5 rounded focus:ring-red-500 focus:ring-offset-0 ${isChecked ? 'text-red-600' : 'text-gray-400'}`} /><span className="text-base">{risk}</span></label>); })}</div></div>
+                            <div className="bg-white p-6 rounded-lg shadow-md border border-gray-100 relative overflow-hidden"><div className="absolute top-0 left-0 w-2 h-full bg-blue-600"></div><h3 className="font-bold mb-4 text-xl text-gray-800 flex items-center"><Icons.ClipboardList className="mr-2 text-blue-600" />Conclusion Générale & Préconisations</h3><p className="text-sm text-gray-500 mb-3">Résumez ici l'ensemble de l'expertise et vos recommandations techniques.</p><textarea className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none min-h-[150px] text-gray-700 leading-relaxed bg-gray-50 focus:bg-white transition-colors" placeholder="Saisissez votre conclusion..." value={formData.conclusionPathologies} onChange={e => updateField('conclusionPathologies', e.target.value)}></textarea></div>
+                        </div>
+                    );
+                    case 13: return (
+                        <div>
+                            <SectionTitle>13. Validation & Signature</SectionTitle>
+                            <div className="bg-white p-6 rounded shadow mb-6 border border-gray-200 leading-relaxed"><h3 className="font-bold text-lg mb-4 text-gray-800 border-b pb-2">Obligation de conseil et d'information</h3><div className="text-sm text-gray-700 space-y-4 text-justify"><p>Ce document établi ce jour <strong>{formatDate(new Date())}</strong> a pour objectif d’informer <strong>M. & Mme {formData.clientNom}</strong> sur les pathologies liés a l'humidité identifiées lors du contrôle et leurs risques associés.</p><p>La société ne pourra en aucun cas être tenue pour responsable notamment en cas de visite partielle, vice caché, défaut d’information ou refus d’exploration ainsi que des conséquences sanitaires, structurelles et/ou économiques liées à l’absence de traitements ultérieurs des pathologies évolutives relevées.</p><p className="font-bold text-black mt-4">Les propriétaires par leur signature ci-dessous reconnaissent avoir été parfaitement informés et déchargent la société de sa responsabilité de conseil.</p></div></div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div className="bg-white p-4 rounded shadow"><Label>Signature du Client</Label><div className="mt-2 border-2 border-gray-300 bg-gray-50 rounded"><canvas ref={clientCanvasRef} width={400} height={200} className="w-full h-48 cursor-crosshair touch-none bg-white" onMouseDown={(e) => startDraw(e, clientCanvasRef, setIsDrawingClient)} onMouseMove={(e) => moveDraw(e, clientCanvasRef, isDrawingClient)} onMouseUp={() => endDraw(clientCanvasRef, setIsDrawingClient, 'signatureClientData')} onMouseLeave={() => endDraw(clientCanvasRef, setIsDrawingClient, 'signatureClientData')} onTouchStart={(e) => startDraw(e, clientCanvasRef, setIsDrawingClient)} onTouchMove={(e) => moveDraw(e, clientCanvasRef, isDrawingClient)} onTouchEnd={() => endDraw(clientCanvasRef, setIsDrawingClient, 'signatureClientData')}></canvas></div><div className="mt-2 flex justify-center gap-2"><button onClick={() => clearSignature(clientCanvasRef, 'signatureClientData')} className="text-xs text-red-600 hover:underline">Effacer</button></div></div>
+                                <div className="bg-white p-4 rounded shadow flex flex-col"><Label>Signature du Technicien</Label><div className="mt-2 border-2 border-gray-300 bg-gray-50 rounded flex-grow"><canvas ref={diagCanvasRef} width={400} height={200} className="w-full h-48 cursor-crosshair touch-none bg-white" onMouseDown={(e) => startDraw(e, diagCanvasRef, setIsDrawingDiag)} onMouseMove={(e) => moveDraw(e, diagCanvasRef, isDrawingDiag)} onMouseUp={() => endDraw(diagCanvasRef, setIsDrawingDiag, 'signatureDiagData')} onMouseLeave={() => endDraw(diagCanvasRef, setIsDrawingDiag, 'signatureDiagData')} onTouchStart={(e) => startDraw(e, diagCanvasRef, setIsDrawingDiag)} onTouchMove={(e) => moveDraw(e, diagCanvasRef, isDrawingDiag)} onTouchEnd={() => endDraw(diagCanvasRef, setIsDrawingDiag, 'signatureDiagData')}></canvas></div><div className="mt-2 flex justify-center gap-2 mb-4"><button onClick={() => clearSignature(diagCanvasRef, 'signatureDiagData')} className="text-xs text-red-600 hover:underline">Effacer</button></div></div>
+                            </div>
+                            <div className="bg-white p-6 rounded shadow mb-6"><h3 className="font-bold mb-4 text-lg">Pièces Jointes (Photos)</h3><div className="mb-4"><label className="block mb-2 text-sm font-medium text-gray-900" htmlFor="file_input">Ajouter des photos (JPG, PNG...)</label><input className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none p-2" id="file_input" type="file" multiple accept="image/*" onChange={handlePhotoUpload} /><p className="mt-1 text-xs text-gray-500">Ces photos seront ajoutées en annexe du rapport PDF.</p></div>{formData.photos.length > 0 && (<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">{formData.photos.map((photoUrl, index) => (<div key={index} className="relative group border rounded overflow-hidden shadow-sm"><img src={photoUrl} alt={`Photo ${index + 1}`} className="w-full h-32 object-cover" /><button onClick={() => removePhoto(index)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-75 group-hover:opacity-100 transition-opacity" title="Supprimer la photo"><Icons.X size={16} /></button><div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 truncate">Annexe {index + 1}</div></div>))}</div>)}</div>
+                            <div className="flex flex-col items-center justify-center p-8 bg-blue-50 rounded border border-blue-100 mt-8"><h3 className="text-xl font-bold text-blue-900 mb-2">Terminé !</h3><p className="mb-4 text-blue-700">Le diagnostic est prêt à être généré.</p><button onClick={generatePDF} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transform transition hover:scale-105 text-lg"><Icons.FileDown size={24} />Télécharger le PDF Complet</button></div>
+                        </div>
+                    );
+                    default: return null;
+                }
+            };
+
+            return (
+                <div className="max-w-4xl mx-auto min-h-screen flex flex-col">
+                    <header className="bg-blue-800 text-white p-4 shadow-lg no-print sticky top-0 z-50"><div className="flex justify-between items-center"><h1 className="text-xl font-bold flex items-center gap-3"><Icons.Droplet className="text-blue-300" size={28} />Diagnostic Humidité</h1><div className="text-sm font-medium bg-blue-700 px-3 py-1 rounded-full">Étape {step} / {totalSteps}</div></div><div className="w-full bg-blue-700 h-2 mt-4 rounded-full overflow-hidden"><div className="bg-blue-300 h-full transition-all duration-300 ease-out" style={{ width: `${(step / totalSteps) * 100}%` }}></div></div></header>
+                    <main className="flex-grow p-4 md:p-8 pb-24 no-print">{renderStep()}</main>
+                    <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 flex justify-between max-w-4xl mx-auto z-10 no-print shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]"><button onClick={() => setStep(s => Math.max(1, s - 1))} disabled={step === 1} className={`flex items-center gap-2 px-4 py-2 rounded border font-medium transition-colors ${step === 1 ? 'text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}><Icons.ChevronLeft size={20} />Précédent</button>{step < totalSteps ? (<button onClick={() => setStep(s => Math.min(totalSteps, s + 1))} className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 shadow-md transition-transform active:scale-95">Suivant<Icons.ChevronRight size={20} /></button>) : null}</footer>
+
+                    {/* --- ZONE CACHÉE POUR LA CAPTURE DU LOGO --- */}
+                    <div id="pdf-logo-source" style={{ position: 'absolute', top: 0, left: '-9999px', width: '300px', padding: '10px', backgroundColor: 'white' }}>
+                        <DiagoLogo />
+                    </div>
+
+                    {/* --- PDF TEMPLATE CENTRÉ --- */}
+                    {/* Le wrapper sert à centrer l'élément à l'écran pour le debug, mais le PDF capture #report-content */}
+                    <div className="hidden flex justify-center">
+                        <div id="report-content">
+
+                            {/* HEADER - MODIFIÉ : Supprimé la Date/Ref qui est maintenant dans le header récurrent */}
+                            <div className="border-b-4 border-brand-900 pb-4 mb-8 pt-4">
+                                <div><h1 className="text-3xl font-bold text-brand-900 uppercase tracking-widest" style={{ fontFamily: "'Roboto Slab', serif" }}>Rapport de Diagnostic</h1><p className="text-brand-700 text-sm uppercase tracking-wide mt-1 font-medium">Diagnostic Humidité & Pathologies</p></div>
+                            </div>
+
+                            {/* BLOC INFO */}
+                            <div className="grid grid-cols-2 gap-8 mb-8 avoid-break">
+                                <div><h3 className="text-xs font-bold text-brand-300 uppercase tracking-wider mb-2 border-b border-brand-200 pb-1">Demandeur</h3><div className="border border-brand-200 bg-brand-50 p-4 rounded-sm"><p className="font-bold text-lg text-brand-900 mb-1">{formData.clientNom.toUpperCase()} {formData.clientPrenom}</p><p className="text-sm text-brand-700 mb-3 italic">{formData.clientQualite || "Qualité non précisée"}</p><div className="text-sm text-slate-600 space-y-1"><p>{formData.clientAdresse}</p><p>{formData.clientCP} {formData.clientVille}</p><div className="mt-2 pt-2 border-t border-brand-200 flex flex-col gap-1 text-xs"><span className="flex justify-between"><span>Tél:</span> <span className="font-mono">{formData.clientTel}</span></span><span className="flex justify-between"><span>Email:</span> <span className="font-mono">{formData.clientEmail}</span></span></div></div></div></div>
+                                <div><h3 className="text-xs font-bold text-brand-300 uppercase tracking-wider mb-2 border-b border-brand-200 pb-1">Technicien En Charge</h3><div className="border border-brand-200 bg-white p-4 rounded-sm shadow-sm"><p className="font-bold text-lg text-brand-900 mb-1">{formData.diagNom.toUpperCase()} {formData.diagPrenom}</p><p className="text-sm text-brand-700 mb-3">Technicien bâtiment – analyse de l’humidité</p><div className="text-sm text-slate-600 space-y-1"><p><span className="font-semibold">Date visite:</span> {formatDate(formData.diagDate)}</p><p><span className="font-semibold">Créneau:</span> {formData.visiteDebut} - {formData.visiteFin}</p></div></div></div>
+                            </div>
+
+                            {/* MISSION (REMPLACÉE PAR RAPPEL) */}
+                            <div className="mb-8 text-justify text-sm text-slate-700 border border-brand-100 bg-brand-50 p-4 rounded avoid-break">
+                                <h4 className="font-bold text-brand-900 text-xs uppercase mb-3 border-b border-brand-200 pb-1">Rappel & Contexte de la Mission</h4>
+                                <div className="space-y-3 leading-relaxed text-xs">
+                                    <p>Suite à la demande de <strong>{formData.clientNom} {formData.clientPrenom}</strong>, il a été procédé à des opérations de diagnostic de l’humidité existante et/ou de la pollution de l’air intérieur par <strong>{formData.diagPrenom} {formData.diagNom}</strong>, le {formatDate(formData.diagDate)}.</p>
+                                    <p>Les opérations de diagnostic ont été réalisées à : <strong>{formData.clientAdresse}, {formData.clientCP} {formData.clientVille}</strong>.</p>
+                                    <p>Les opérations menées avaient pour but de répondre à la demande d’identification de l’origine des désordres, d’en déterminer la cause et les conséquences structurelles, économiques, financières et sanitaires, et enfin d’en déterminer les traitements possibles.</p>
+
+                                    <div>
+                                        <p className="font-bold text-brand-800 mb-1">Ces opérations sont basées sur :</p>
+                                        <ul className="list-disc list-inside ml-2 italic text-slate-600">
+                                            <li>Les déclarations des personnes présentes</li>
+                                            <li>Les observations du technicien</li>
+                                            <li>Les relevés et prélèvements réalisés sur place</li>
+                                            <li>Les éléments fournis (photos, plans, factures, expertises, constats…)</li>
+                                        </ul>
+                                    </div>
+
+                                    <div className="mt-2 p-2 bg-red-50 border border-red-100 text-red-800 rounded-sm">
+                                        <strong>Avertissement :</strong> Les résultats peuvent être remis en cause en cas d’omission volontaire, de fausse déclaration ou d’intervention préalable masquant les désordres.
+                                    </div>
+
+                                    <p className="mt-2"><strong>Le demandeur déclare avoir respecté le protocole :</strong> Fenêtres fermées 24h avant, aucune trace nettoyée, aucune dissimulation, aucun incident ancien occulté, aucune fausse déclaration, aucune opposition à la visite.</p>
+
+                                    <p className="mt-2 font-medium italic text-brand-700 border-t border-brand-200 pt-2">Il ressort de ces opérations les éléments présentés dans les pages suivantes.</p>
+                                </div>
+                            </div>
+
+                            {/* I. CONTEXTE */}
+                            <div className="avoid-break mb-6">
+                                <h2 className="text-lg font-bold text-brand-900 uppercase tracking-wide border-b-2 border-brand-200 mb-4 pb-1 mt-8">I. Contexte & Caractéristiques</h2>
+                                <table className="tech-table mb-6 shadow-sm"><tbody><tr><th style={{ width: '25%' }}>Type de Bien</th><td style={{ width: '25%' }}>{formData.batType || 'N/A'}</td><th style={{ width: '25%' }}>Année Const.</th><td style={{ width: '25%' }}>{formData.batAnnee || 'N/A'}</td></tr><tr><th>Maçonnerie</th><td>{formData.batMaconnerie || 'Non précisée'}</td><th>Isolation</th><td>{formData.batIsolation.length > 0 ? formData.batIsolation.join(', ') : 'Non précisée'}</td></tr><tr><th>Occupation</th><td colSpan="3">{formData.nbAdultes} Adulte(s), {formData.nbEnfants} Enfant(s)</td></tr></tbody></table>
+                                <div className="mb-6"><h4 className="text-xs font-bold text-brand-700 uppercase mb-2 ml-1">Historique des désordres (Déclaratif)</h4><table className="tech-table shadow-sm"><tbody><tr><th style={{ width: '20%' }}>Apparition</th><td>{formData.histDate || 'Non précisée'}</td></tr><tr><th>Localisation</th><td>{formData.histPieces.length > 0 ? formData.histPieces.join(', ') : 'Non précisée'}</td></tr><tr><th>Note Client</th><td className="italic text-slate-600 whitespace-pre-wrap">{formData.histObs || "Aucune observation particulière."}</td></tr></tbody></table></div>
+                            </div>
+
+                            {/* II. ANALYSE - SECTION PROBLEMATIQUE CORRIGEE */}
+                            <div className="avoid-break mb-6">
+                                <h2 className="text-lg font-bold text-brand-900 uppercase tracking-wide border-b-2 border-brand-200 mb-4 pb-1 mt-2">II. Constats Techniques</h2>
+                                <div className="grid grid-cols-2 gap-6 mb-8">
+                                    <div>
+                                        <h4 className="text-xs font-bold text-brand-900 uppercase bg-brand-200 p-2 mb-0 border border-brand-300 border-b-0 text-center rounded-t">Symptômes Intérieurs</h4>
+                                        {/* REMOVED h-full to fix overflow issues */}
+                                        <div className="border border-brand-300 p-3 bg-white text-sm rounded-b shadow-sm min-h-[100px]">
+                                            {formData.sympInt.length > 0 ? (<ul className="list-disc list-inside space-y-1 text-slate-700">{formData.sympInt.map((s, i) => <li key={i}>{s}</li>)}</ul>) : <span className="text-slate-400 italic">Aucun symptôme relevé</span>}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h4 className="text-xs font-bold text-brand-900 uppercase bg-brand-200 p-2 mb-0 border border-brand-300 border-b-0 text-center rounded-t">Symptômes Extérieurs</h4>
+                                        {/* REMOVED h-full to fix overflow issues */}
+                                        <div className="border border-brand-300 p-3 bg-white text-sm rounded-b shadow-sm min-h-[100px]">
+                                            {formData.sympExt.length > 0 ? (<ul className="list-disc list-inside space-y-1 text-slate-700">{formData.sympExt.map((s, i) => <li key={i}>{s}</li>)}</ul>) : <span className="text-slate-400 italic">Aucun symptôme relevé</span>}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Spacer invisible pour garantir la séparation si la grille au dessus grandit */}
+                            <div className="h-4 w-full"></div>
+
+                            <div className="avoid-break mt-4">
+                                <h4 className="text-xs font-bold text-brand-700 uppercase mb-2 ml-1 pt-2">Observations Visuelles Technicien</h4>
+                                <table className="tech-table mb-8 shadow-sm"><thead><tr><th style={{ width: '25%' }}>Zone</th><th>Observations Détaillées</th></tr></thead><tbody><tr><td className="font-semibold text-brand-900">Murs Extérieurs</td><td>{formData.obsMurExt.length > 0 ? formData.obsMurExt.join(', ') : 'R.A.S'}</td></tr><tr><td className="font-semibold text-brand-900">Murs Intérieurs</td><td>{formData.obsMurInt.length > 0 ? formData.obsMurInt.join(', ') : 'R.A.S'}</td></tr><tr><td className="font-semibold text-brand-900">Ventilation / Air</td><td>{formData.obsAirInt.length > 0 ? formData.obsAirInt.join(', ') : 'R.A.S'}</td></tr>{formData.obsSupp && (<tr><td className="font-semibold text-brand-500">Note Complémentaire</td><td className="italic whitespace-pre-wrap">{formData.obsSupp}</td></tr>)}</tbody></table>
+                            </div>
+
+                            {/* RELEVES METROLOGIQUES */}
+                            <div className="avoid-break break-before-page mt-8">
+                                <h4 className="text-xs font-bold text-brand-700 uppercase mb-2 ml-1">Relevés Métrologiques</h4>
+                                <table className="tech-table mb-4 shadow-sm"><thead><tr><th style={{ width: '20%' }}>Type de Mesure</th><th style={{ width: '15%' }}>Résultat</th><th>Détails / Localisation</th></tr></thead><tbody><tr><td className="font-bold text-brand-900">Test Nitrates</td><td className={`text-center font-bold ${formData.testNitrate === 'Oui' ? 'text-red-700 bg-red-50' : 'text-slate-700'}`}>{formData.testNitrate}</td><td>{formData.testNitrate === 'Oui' && formData.testNitrateListe.length > 0 ? formData.testNitrateListe.map((t, i) => <span key={i} className="block">• {t.valeur} mg ({t.lieu})</span>) : "N/A"}</td></tr><tr><td className="font-bold text-brand-900">Humidimètre T660</td><td className={`text-center font-bold ${formData.testT660 === 'Oui' ? 'text-brand-700 bg-brand-50' : 'text-slate-700'}`}>{formData.testT660}</td><td className="text-xs whitespace-pre-wrap">{formData.testT660Details || "-"}</td></tr><tr><td className="font-bold text-brand-900">Hygrométrie</td><td className={`text-center font-bold ${formData.testHygro === 'Oui' ? 'text-brand-700 bg-brand-50' : 'text-slate-700'}`}>{formData.testHygro}</td><td className="text-xs whitespace-pre-wrap">{formData.testHygroDetails || "-"}</td></tr></tbody></table>
+                                {formData.obsFinales && (<div className="border border-brand-200 bg-brand-50 p-3 text-sm italic text-brand-900 mb-6 rounded-sm"><span className="font-bold not-italic text-xs uppercase text-brand-500 block mb-1">Synthèse des mesures :</span><div className="whitespace-pre-wrap">{formData.obsFinales}</div></div>)}
+                            </div>
+
+                            {/* III. DIAGNOSTIC & CONCLUSIONS - Forcé le break pour éviter le chevauchement */}
+                            <div className="avoid-break break-before-page mt-8">
+                                <h2 className="text-lg font-bold text-brand-900 uppercase tracking-wide border-b-2 border-brand-200 mb-4 pb-1">III. Diagnostic & Conclusions</h2>
+                                <div className="mb-8">
+                                    <table className="tech-table diag-table w-full shadow-md border-collapse"><thead><tr className="bg-brand-900 text-white"><th style={{ width: '60%', backgroundColor: '#1e3a8a', color: 'white', border: '1px solid #172554' }}>Pathologie Analysée</th><th style={{ width: '40%', textAlign: 'center', backgroundColor: '#1e3a8a', color: 'white', border: '1px solid #172554' }}>Évaluation Technique</th></tr></thead><tbody>{DATA.pathologiesList.map((patho, index) => { const statusValue = formData.pathologiesState[patho]; const opt = DATA.pathoStatusOptions.find(o => o.value === statusValue); let rowClass = "bg-white"; let textClass = "text-slate-800"; let borderClass = "border-slate-200"; if (statusValue === 'ras') { rowClass = "bg-brand-50"; textClass = "text-slate-500 italic"; borderClass = "border-brand-100"; } else if (statusValue === 'correct') { rowClass = "bg-green-50"; textClass = "text-green-900 font-semibold"; borderClass = "border-green-200"; } else if (statusValue === 'surveiller') { rowClass = "bg-yellow-50"; textClass = "text-yellow-900 font-semibold"; borderClass = "border-yellow-200"; } else if (statusValue === 'necessaire') { rowClass = "bg-orange-50"; textClass = "text-orange-900 font-bold"; borderClass = "border-orange-200"; } else if (statusValue === 'urgente') { rowClass = "bg-red-50"; textClass = "text-red-900 font-bold"; borderClass = "border-red-200"; } return (<tr key={index} className={rowClass}><td className={`py-3 px-4 border-b ${borderClass} ${textClass} text-sm`}>{patho}</td><td className={`py-3 px-4 text-center border-b ${borderClass} border-l`}><span className={`inline-block px-3 py-1 text-xs uppercase tracking-widest font-bold rounded-sm ${textClass}`}>{opt ? opt.label : 'NON ÉVALUÉ'}</span></td></tr>); })}</tbody></table>
+                                </div>
+                            </div>
+
+                            {/* RISQUES - Bloc Indépendant Insécable */}
+                            {formData.risquesCoches.length > 0 && (<div className="mb-8 border-2 border-red-100 bg-white rounded shadow-sm avoid-break"><div className="bg-red-50 border-b border-red-100 p-3"><h4 className="font-bold text-red-900 text-xs uppercase tracking-wide flex items-center"><span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>Facteurs de Risques Identifiés</h4></div><div className="p-4 grid grid-cols-2 gap-3 text-sm text-red-900 font-medium">{formData.risquesCoches.map((r, i) => (<div key={i} className="flex items-center p-2 bg-red-50/50 rounded"><svg className="w-4 h-4 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>{r}</div>))}</div></div>)}
+
+                            {/* CONCLUSION - SÉPARÉE pour autoriser les sauts de page ENTRE paragraphes */}
+                            <div className="mb-10 mt-6">
+                                {/* EN-TÊTE + PREMIER PARAGRAPHE (Soudés pour éviter Titre orphelin) */}
+                                <div className="break-inside-avoid page-break-inside-avoid">
+                                    <div className="bg-brand-900 text-white p-2 rounded-t-sm">
+                                        <h4 className="font-bold uppercase tracking-widest text-xs pl-2">Conclusion & Préconisations du Technicien</h4>
+                                    </div>
+                                    <div className="border-2 border-brand-900 border-t-0 border-b-0 bg-white p-6 pb-2 shadow-sm">
+                                        {/* Premier paragraphe affiché ici pour coller au titre */}
+                                        <p className="text-slate-800 text-justify text-sm leading-7 font-medium">
+                                            {formData.conclusionPathologies ? formData.conclusionPathologies.split('\n')[0] : "Aucune conclusion générale renseignée."}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* LE RESTE DU TEXTE (Chaque paragraphe est insécable mais on peut couper ENTRE eux) */}
+                                <div className="border-2 border-brand-900 border-t-0 bg-white p-6 pt-0 shadow-sm rounded-b-sm">
+                                    {formData.conclusionPathologies && formData.conclusionPathologies.split('\n').slice(1).map((para, idx) => (
+                                        para.trim() ? (
+                                            <p key={idx} className="text-slate-800 text-justify text-sm leading-7 font-medium mt-4 break-inside-avoid page-break-inside-avoid">
+                                                {para}
+                                            </p>
+                                        ) : null // Ignorer les lignes vides ou gérer les sauts simples
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* SIGNATURES - BAS DE PAGE - Groupe insécable */}
+                            <div className="mt-auto break-inside-avoid avoid-break">
+                                {/* OBLIGATION DE CONSEIL - Intégration demandée */}
+                                <div className="mb-4 border-t-2 border-brand-100 pt-4">
+                                    <h4 className="font-bold text-xs uppercase text-brand-900 mb-2">Obligation de conseil et d'information</h4>
+                                    <div className="text-[10px] text-slate-600 text-justify leading-relaxed space-y-2">
+                                        <p>Ce document établi ce jour <strong>{formatDate(new Date())}</strong> a pour objectif d’informer <strong>M. & Mme {formData.clientNom}</strong> sur les pathologies liés a l'humidité identifiées lors du contrôle et leurs risques associés.</p>
+                                        <p>La société ne pourra en aucun cas être tenue pour responsable notamment en cas de visite partielle, vice caché, défaut d’information ou refus d’exploration ainsi que des conséquences sanitaires, structurelles et/ou économiques liées à l’absence de traitements ultérieurs des pathologies évolutives relevées.</p>
+                                        <p className="font-bold text-brand-900">Les propriétaires par leur signature ci-dessous reconnaissent avoir été parfaitement informés et déchargent la société de sa responsabilité de conseil.</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-between items-start border border-brand-300 p-1 bg-white">
+                                    <div className="w-1/2 p-4 border-r border-brand-300"><p className="mb-4 font-bold text-xs uppercase text-brand-900">Pour le Client</p><p className="text-[10px] text-slate-500 mb-2">Mention "Lu et approuvé"</p><div className="h-32 border border-brand-100 flex items-center justify-center bg-brand-50">{formData.signatureClientData ? (<img src={formData.signatureClientData} alt="Signature Client" className="max-h-full max-w-full object-contain" />) : <span className="text-brand-200 text-xs italic">Espace Signature</span>}</div><p className="text-xs mt-2 text-brand-700">Fait à {formData.clientVille}, le {formatDate(new Date())}</p></div>
+                                    <div className="w-1/2 p-4"><p className="mb-4 font-bold text-xs uppercase text-brand-900">Le Technicien</p><p className="text-[10px] text-slate-500 mb-2">Cachet et Signature</p><div className="h-32 border border-brand-100 flex items-center justify-center bg-brand-50">{formData.signatureDiagData ? (<img src={formData.signatureDiagData} alt="Signature Technicien" className="max-h-full max-w-full object-contain" />) : <span className="text-brand-200 text-xs italic">Espace Signature</span>}</div></div>
+                                </div>
+                            </div>
+
+                            {/* ANNEXES PHOTOS */}
+                            {formData.photos.length > 0 && (<><div className="page-break"></div><div className="border-b-4 border-brand-900 pb-2 mb-8 mt-8"><h1 className="text-2xl font-bold text-brand-900 uppercase tracking-widest">Annexes Photographiques</h1><p className="text-sm text-brand-500 font-medium">Relevés visuels in-situ</p></div><div className="grid grid-cols-2 gap-4">{formData.photos.map((photoUrl, index) => (<div key={index} className="break-inside-avoid avoid-break border border-brand-200 p-2 bg-white shadow-sm"><div className="h-64 bg-slate-100 flex items-center justify-center overflow-hidden mb-2 border border-slate-100"><img src={photoUrl} alt={`Annexe ${index + 1}`} className="object-contain w-full h-full" /></div><div className="text-center font-bold text-xs text-brand-800 uppercase tracking-wide py-1 bg-brand-50 rounded-sm">Photo N°{index + 1}</div></div>))}</div></>)}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+
+</html>
