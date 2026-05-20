@@ -59,7 +59,6 @@ export const PhotoUpload = () => {
           type="file"
           multiple
           accept="image/*"
-          capture="environment"
           onChange={(e) => {
             void onFiles(e.target.files);
             e.target.value = '';

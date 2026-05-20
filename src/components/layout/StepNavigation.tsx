@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, FileDown, RotateCcw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 interface StepNavigationProps {
@@ -56,17 +56,6 @@ export const StepNavigation = ({
           >
             {nextLabel ?? 'Suivant'}
             <ChevronRight className="h-4 w-4" />
-          </button>
-        )}
-        {isLast && (
-          <button
-            type="button"
-            onClick={onNext}
-            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
-          >
-            <FileDown className="h-4 w-4" />
-            <span className="hidden sm:inline">Aperçu PDF</span>
-            <span className="sm:hidden">PDF</span>
           </button>
         )}
       </div>

@@ -1,5 +1,5 @@
 import { Controller, useFormContext } from 'react-hook-form';
-import { AlertTriangle, BadgeCheck, ClipboardList } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, ClipboardList, Info } from 'lucide-react';
 import { SectionCard } from '../layout/SectionCard';
 import { StepTitle } from '../layout/StepTitle';
 import { TextAreaField } from '../form/fields/TextAreaField';
@@ -9,8 +9,11 @@ import {
   PATHOLOGY_STATUS_OPTIONS,
   RISQUES,
 } from '../../data/constants';
+import { PATHOLOGY_AUTO_TEXTS } from '../../data/pathologyTexts';
 import type { ReportData } from '../../schemas/reportSchema';
 import { cn } from '../../utils/cn';
+
+const TRIGGER_STATUSES = ['necessaire', 'urgente'] as const;
 
 export const Step12Pathologies = () => {
   const { control, watch, setValue, register } = useFormContext<ReportData>();
@@ -48,6 +51,9 @@ export const Step12Pathologies = () => {
               name={`pathologiesState.${key}`}
               render={({ field }) => {
                 const opt = PATHOLOGY_STATUS_OPTIONS.find((o) => o.value === field.value);
+                const isTriggered = (TRIGGER_STATUSES as readonly string[]).includes(field.value);
+                const hasAutoText = Boolean(PATHOLOGY_AUTO_TEXTS[key]);
+                const showNoAutoTextNotice = isTriggered && !hasAutoText;
                 return (
                   <div
                     className={cn(
@@ -71,6 +77,15 @@ export const Step12Pathologies = () => {
                         </option>
                       ))}
                     </select>
+                    {showNoAutoTextNotice && (
+                      <div className="flex items-start gap-1.5 rounded-md bg-white/70 px-2 py-1.5 text-xs text-slate-700">
+                        <Info className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
+                        <span>
+                          Aucun texte automatique pour cette pathologie — saisissez votre
+                          conclusion manuellement ci-dessous.
+                        </span>
+                      </div>
+                    )}
                   </div>
                 );
               }}
