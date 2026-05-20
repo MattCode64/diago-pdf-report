@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { PDFViewer, pdf } from '@react-pdf/renderer';
-import { Download, Share2, Loader2 } from 'lucide-react';
+import { Download, Share2, Loader2, Smartphone } from 'lucide-react';
 import { ReportDocument } from '../pdf/ReportDocument';
 import { StepTitle } from '../layout/StepTitle';
 import { SectionCard } from '../layout/SectionCard';
@@ -36,11 +36,20 @@ export const Step14Preview = () => {
       const a = document.createElement('a');
       a.href = url;
       a.download = fileName;
+      // iOS Safari ignore `download` sur <a> et n'ouvre rien sans target.
+      // Avec target="_blank", Safari ouvre le PDF dans un nouvel onglet où
+      // l'utilisateur peut le sauvegarder (Fichiers, Books, Partager…).
+      a.target = '_blank';
+      a.rel = 'noopener';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // iOS révoque trop tôt l'URL → la navigation vers le blob échoue.
+      // 60 s suffit pour que tous les UA déclenchent leur flux.
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       clearDraft();
+    } catch (err) {
+      console.error('Erreur téléchargement', err);
     } finally {
       setBusy(null);
     }
@@ -113,7 +122,23 @@ export const Step14Preview = () => {
       </SectionCard>
 
       <SectionCard title="Aperçu">
-        <div className="-mx-4 h-[75vh] overflow-hidden bg-slate-200 md:mx-0 md:rounded-lg">
+        {/* Mobile : iframe PDF.js ne pagine pas correctement sur iOS Safari,
+            on affiche un message + CTA Télécharger. L'utilisateur visualise
+            le PDF complet dans Fichiers / Books après téléchargement. */}
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center md:hidden">
+          <Smartphone className="h-8 w-8 text-slate-400" />
+          <p className="text-sm font-medium text-slate-700">
+            L'aperçu intégré n'est pas optimisé pour mobile
+          </p>
+          <p className="text-xs text-slate-500">
+            Téléchargez ou partagez le PDF pour le visualiser entièrement
+            (toutes les pages, zoom, recherche).
+          </p>
+        </div>
+        <div
+          className="-mx-4 hidden h-[75vh] overflow-hidden bg-slate-200 md:mx-0 md:block md:rounded-lg"
+          data-testid="pdf-viewer-desktop"
+        >
           <PDFViewer width="100%" height="100%" showToolbar>
             <ReportDocument data={data} />
           </PDFViewer>

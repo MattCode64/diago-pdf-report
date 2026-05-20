@@ -88,9 +88,22 @@ describe('Step14Preview', () => {
       ).toBeInTheDocument();
     });
 
-    it('affiche le mock du PDFViewer dans la section Aperçu', () => {
+    it('affiche le mock du PDFViewer dans la section Aperçu (desktop)', () => {
       renderWithForm(<Step14Preview />);
+      // Le PDFViewer reste rendu côté JSDOM (les classes md:hidden / md:block
+      // sont du CSS — pas appliquées en environnement de test).
       expect(screen.getByTestId('pdf-viewer')).toBeInTheDocument();
+      expect(screen.getByTestId('pdf-viewer-desktop')).toBeInTheDocument();
+    });
+
+    it('affiche un message dédié mobile pour expliquer l\'absence d\'aperçu sur petit écran', () => {
+      renderWithForm(<Step14Preview />);
+      expect(
+        screen.getByText("L'aperçu intégré n'est pas optimisé pour mobile"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Téléchargez ou partagez le PDF pour le visualiser entièrement/),
+      ).toBeInTheDocument();
     });
 
     it('affiche le message d\'info sur l\'effacement automatique du brouillon', () => {
@@ -128,16 +141,50 @@ describe('Step14Preview', () => {
       expect(clearDraftMock).toHaveBeenCalledTimes(1);
     });
 
-    it('crée une URL d\'objet pour le blob et la révoque ensuite', async () => {
+    it('crée une URL d\'objet pour le blob et la révoque après un délai (iOS-safe)', async () => {
       const user = userEvent.setup();
       const createSpy = vi.spyOn(URL, 'createObjectURL');
       const revokeSpy = vi.spyOn(URL, 'revokeObjectURL');
+      vi.useFakeTimers({ shouldAdvanceTime: true });
 
       renderWithForm(<Step14Preview />);
       await user.click(screen.getByRole('button', { name: /Télécharger le PDF/ }));
 
       expect(createSpy).toHaveBeenCalledTimes(1);
+      // Sur iOS Safari, on diffère la révocation : pas appelée immédiatement.
+      expect(revokeSpy).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(60_000);
       expect(revokeSpy).toHaveBeenCalledWith('blob:mock');
+
+      vi.useRealTimers();
+    });
+
+    it('ouvre la cible dans un nouvel onglet (iOS Safari ignore <a download> sans target)', async () => {
+      const user = userEvent.setup();
+      const appendChildSpy = vi.spyOn(document.body, 'appendChild');
+
+      renderWithForm(<Step14Preview />);
+      await user.click(screen.getByRole('button', { name: /Télécharger le PDF/ }));
+
+      const aTags = appendChildSpy.mock.calls
+        .map((c) => c[0])
+        .filter((n): n is HTMLAnchorElement => n instanceof HTMLAnchorElement);
+      expect(aTags.length).toBeGreaterThan(0);
+      expect(aTags[0].target).toBe('_blank');
+      expect(aTags[0].rel).toContain('noopener');
+    });
+
+    it('logue une erreur si la génération du PDF échoue', async () => {
+      const user = userEvent.setup();
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      toBlobMock.mockRejectedValueOnce(new Error('boom'));
+
+      renderWithForm(<Step14Preview />);
+      await user.click(screen.getByRole('button', { name: /Télécharger le PDF/ }));
+
+      expect(consoleSpy).toHaveBeenCalledWith('Erreur téléchargement', expect.any(Error));
+      expect(clearDraftMock).not.toHaveBeenCalled();
     });
 
     it('utilise le nom du client dans le nom de fichier', async () => {
